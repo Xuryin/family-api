@@ -6,11 +6,9 @@ function cryptPwd(password) {
     var md5 = crypto.createHash('md5');
     return md5.update(password).digest('hex');
 }
-
+let pool = require('../../scripts/mysql')
 
 exports.registerPage = function(req, res) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
     console.log(req.query.password)
     let username = req.query.username
     let password = cryptPwd(req.query.password)
@@ -24,12 +22,16 @@ exports.registerPage = function(req, res) {
 
 
 exports.registerPost = function(req, res) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With");
-    res.header("Access-Control-Allow-Methods","PUT,POST,GET,DELETE,OPTIONS");
-    res.header("X-Powered-By",' 3.2.1');
-    // 打印post请求的数据内容
     console.log(req.body);
+    let user = [];
+    user[0] = req.body.username;
+    user[1] = cryptPwd(req.body.password);
+    pool.getConnection('insert into m_user(uname,password) values(?,?);',user,(err,result)=>{
+        if (err){
+            throw err
+        }
+        console.log(result)
+    })
     res.send({status: 1, data: "this is the results", msg: 'success'})
 }
 
