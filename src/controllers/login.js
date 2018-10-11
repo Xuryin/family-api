@@ -8,19 +8,6 @@ function cryptPwd(password) {
 }
 let pool = require('../../scripts/mysql')
 
-exports.registerPage = function(req, res) {
-    console.log(req.query.password)
-    let username = req.query.username
-    let password = cryptPwd(req.query.password)
-    console.log(password)
-    let code = req.query.code
-    if (username || password || code) {
-
-    }
-    res.send({status: 1, data: "this is the results", msg: 'success'})
-}
-
-
 exports.registerPost = function(req, res) {
     console.log(req.body);
     let user = [];
