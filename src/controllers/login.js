@@ -22,7 +22,6 @@ exports.registerPost = function(req, res) {
     res.send({status: 1, data: "this is the results", msg: 'success'})
 }
 
-
 exports.loginPage = function(req, res) {
     res.render('login/index', {username: req.flash('username')});
 }

@@ -12,15 +12,14 @@ module.exports = function (app, passport) {
 
 
     // Auth
-    app.get('/register', loginController.registerPage);
     app.post('/register', loginController.registerPost);
-    app.get('/login', loginController.loginPage);
     app.post('/login', loginController.checkLogin);
     app.get('/logout', loginController.logout);
 
 
     // Goods
     app.post('/goodsLists', goodController.getGoodLists)
+    app.post('/goodsDetails', goodController.getGoodDetails)
 
     // 'rendering' can be used to format api calls (if you have an api)
     // into either html or json depending on the 'Accept' request header
