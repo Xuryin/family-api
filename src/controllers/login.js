@@ -1,15 +1,17 @@
-var crypto = require('crypto'),
+let crypto = require('crypto'),
     md5 = crypto.createHash("md5"),
-    passport = require('passport')
+    passport = require('passport'),
+    pool = require('../../scripts/mysql')
 
-function cryptPwd(password) {
+
+function cryptPwd (password) {
     var md5 = crypto.createHash('md5');
     return md5.update(password).digest('hex');
 }
-let pool = require('../../scripts/mysql')
+
+exports.cryptPwd = cryptPwd
 
 exports.registerPost = function(req, res) {
-    console.log(req.body);
     let user = [];
     user[0] = req.body.username;
     user[1] = cryptPwd(req.body.password);
@@ -17,7 +19,6 @@ exports.registerPost = function(req, res) {
         if (err){
             throw err
         }
-        console.log(result)
     })
     res.send({status: 1, data: "this is the results", msg: 'success'})
 }
@@ -27,22 +28,19 @@ exports.loginPage = function(req, res) {
 }
 
 
-exports.checkLogin = function(req, res, next) {
-    passport.authenticate('local', function(err, user, info) {
-        if (err || !user) {
-            req.flash('username', req.body.un);
-            req.flash('error', info.message);
-            return res.redirect('/login');
-        }
-        req.logIn(user, function(err) {
-            if (err) {
-                req.flash('error', info.message);
-                return res.redirect('/login');
+exports.checkLogin = (req, res, next)  => {
+    console.log(req.body)
+    passport.authenticate('local-login'),
+        function(req, res) {
+            console.log("hello");
+
+            if (req.body.remember) {
+                req.session.cookie.maxAge = 1000 * 60 * 3;
+            } else {
+                req.session.cookie.expires = false;
             }
-            req.flash('success', 'Welcome!');
-            return res.redirect('/home');
-        });
-    })(req, res, next);
+            res.redirect('/');
+        }
 }
 
 

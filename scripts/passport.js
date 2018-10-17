@@ -1,40 +1,107 @@
-var bodyParser = require('body-parser');
-var passport = require('passport');
-var session = require("express-session");
-var LocalStrategy = require('passport-local').Strategy;
+// config/passport.js
 
-passport.use(new LocalStrategy((uname, password, done) => {
-    try {
-        //If the credentials are not valid (for example, if the password is incorrect),
-        // done should be invoked with false instead of a user to indicate an authentication failure.
-        // An additional info message can be supplied to indicate the reason for the failure.
-        // This is useful for displaying a flash message prompting the user to try again.
-        if (uname != 'aaa') {
-            return done(null, false, { message: 'Incorrect username.' })
-        }
-        if (password != 'aaa') {
-            return done(null, false, { message: 'Incorrect password.' })
-        }
-        //If the credentials are valid, the verify callback invokes done to supply Passport with the user that authenticated.
-        return done(null, user);
-    } catch (e) {
-        return done(err)
-    }
-}))
+// load all the things we need
+var LocalStrategy   = require('passport-local').Strategy;
 
+// load up the user model
+var mysql = require('mysql');
+// var bcrypt = require('bcrypt-nodejs');
+var dbconfig = require('./database');
+var pool = require('../scripts/mysql')
+let cryptPwd = require('../src/controllers/login')
 
-// 一些基本的回调
-exports.pass = () => {
-    passport.serializeUser((user, done) => {
-        done(null. user.id)
-    })
+// expose this function to our app using module.exports
+module.exports = function(passport) {
 
-    passport.deserializeUser((id, done) => {
-        UserModel.findById(id, function(err, user) {
-            done(err, user);
-        })
-    })
+    // =========================================================================
+    // passport session setup ==================================================
+    // =========================================================================
+    // required for persistent login sessions
+    // passport needs ability to serialize and unserialize users out of session
 
-}
+    // used to serialize the user for the session
+    passport.serializeUser(function(user, done) {
+        done(null, user.id);
+    });
 
+    // used to deserialize the user
+    passport.deserializeUser(function(id, done) {
+        pool.getConnection("SELECT * FROM users WHERE id = ? ",[id], function(err, rows){
+            done(err, rows[0]);
+        });
+    });
 
+    // =========================================================================
+    // LOCAL SIGNUP ============================================================
+    // =========================================================================
+    // we are using named strategies since we have one for login and one for signup
+    // by default, if there was no name, it would just be called 'local'
+
+    passport.use(
+        'local-signup',
+        new LocalStrategy({
+                // by default, local strategy uses username and password, we will override with email
+                usernameField : 'username',
+                passwordField : 'password',
+                passReqToCallback : true // allows us to pass back the entire request to the callback
+            },
+            function(req, username, password, done) {
+                // find a user whose email is the same as the forms email
+                // we are checking to see if the user trying to login already exists
+                pool.getConnection("SELECT * FROM m_users WHERE uname = ?",[username], function(err, rows) {
+                    if (err)
+                        return done(err);
+                    if (rows.length) {
+                        return done(null, false, req.flash('signupMessage', 'That username is already taken.'));
+                    } else {
+                        // if there is no user with that username
+                        // create the user
+                        var newUserMysql = {
+                            username: username,
+                            password: cryptPwd(password)  // use the generateHash function in our user model
+                        };
+
+                        var insertQuery = "INSERT INTO users ( uname, password ) values (?,?)";
+
+                        connection.query(insertQuery,[newUserMysql.username, newUserMysql.password],function(err, rows) {
+                            newUserMysql.id = rows.insertId;
+
+                            return done(null, newUserMysql);
+                        });
+                    }
+                });
+            })
+    );
+
+    // =========================================================================
+    // LOCAL LOGIN =============================================================
+    // =========================================================================
+    // we are using named strategies since we have one for login and one for signup
+    // by default, if there was no name, it would just be called 'local'
+
+    passport.use(
+        'local-login',
+        new LocalStrategy({
+                // by default, local strategy uses username and password, we will override with email
+                failureFlash: 'Invalid username or password.',
+                successFlash: 'Welcome!'
+            },
+            function(req, username, password, done) { // callback with email and password from our form
+                console.log(username)
+                pool.getConnection("SELECT * FROM m_users WHERE uname = ?",[username], function(err, rows){
+                    if (err)
+                        return done(err);
+                    if (!rows.length) {
+                        return done(null, false, req.flash('loginMessage', 'No user found.')); // req.flash is the way to set flashdata using connect-flash
+                    }
+
+                    // if the user is found but the password is wrong
+                    if (cryptPwd(password))
+                        return done(null, false, req.flash('loginMessage', 'Oops! Wrong password.')); // create the loginMessage and save it to session as flashdata
+
+                    // all is well, return successful user
+                    return done(null, rows[0]);
+                });
+            })
+    );
+};
